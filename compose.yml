@@ -1,0 +1,21 @@
+services:
+  compiler-explorer:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    image: dcr.devsh.eu/compiler-explorer:latest
+    container_name: dev.ce.base
+    entrypoint: ["cmd", "/c", "npm --prefix %GIT_GODBOLT_REPOSITORY_PATH% run dev"]
+    networks:
+      docker_default:
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 4G
+    ports:
+      - "80:10240"
+
+networks:
+  docker_default:
+    external: true
