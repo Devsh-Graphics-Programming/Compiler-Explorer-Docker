@@ -88,3 +88,7 @@ RUN `
     reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v "LongPathsEnabled" /t REG_DWORD /d 1 /f
 
 COPY ce_healthy_check.py /ce_healthy_check.py
+
+SHELL ["powershell.exe", "-ExecutionPolicy", "Bypass", "-Command"]
+ENTRYPOINT ["powershell.exe", "-ExecutionPolicy", "Bypass"]
+CMD ["-NoExit"]

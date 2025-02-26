@@ -3,7 +3,7 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile
-    image: dcr.devsh.eu/compiler-explorer:latest
+    image: dr.devsh.eu/compiler-explorer/windows:latest
     container_name: dev.ce.base
     entrypoint: ["cmd", "/c", "npm --prefix %GIT_GODBOLT_REPOSITORY_PATH% run dev"]
     networks:
