@@ -1,94 +1,42 @@
-# escape=`
+ARG IMPL_NANO_BASE=mcr.microsoft.com/powershell
+ARG IMPL_NANO_TAG=lts-nanoserver-ltsc2022
+ARG IMPL_ARTIFACTS_DIR="C:\artifacts"
+ARG NODE_VERSION=23.10.0
 
-ARG BASE_IMAGE=mcr.microsoft.com/windows/servercore:ltsc2022-amd64
+# nodejs
+FROM ${IMPL_NANO_BASE}:${IMPL_NANO_TAG} as node
+SHELL ["pwsh", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
 
-FROM ${BASE_IMAGE}
+ARG NODE_VERSION
+ARG IMPL_ARTIFACTS_DIR
 
-SHELL ["cmd", "/S", "/C"]
+RUN New-Item -ItemType Directory -Force -Path "C:\Temp", $env:IMPL_ARTIFACTS_DIR && Invoke-WebRequest -Uri https://nodejs.org/download/release/latest/node-v$env:NODE_VERSION-win-x64.zip -OutFile C:\Temp\nodejs.zip && tar -xf C:\Temp\nodejs.zip -C $env:IMPL_ARTIFACTS_DIR && Remove-Item C:\Temp\nodejs.zip && ls $env:IMPL_ARTIFACTS_DIR
 
-ENV GIT_VERSION=2.47.1
+# compiler-explorer
+FROM ${IMPL_NANO_BASE}:${IMPL_NANO_TAG} as compiler-explorer
+SHELL ["pwsh", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
 
-RUN `
-	# Download Git
-	`
-	curl -SL --output git.zip https://github.com/git-for-windows/git/releases/download/v%GIT_VERSION%.windows.1/MinGit-%GIT_VERSION%-64-bit.zip `
-	`
-	&& mkdir "C:\\git" `
-	`
-	&& tar -xf git.zip -C "C:\\git" `
-	`
-	&& setx PATH "%PATH%;C:\\git\\cmd" /M `
-	`
-	&& del /q git.zip
-	
-RUN `
-	# Post git configuration
-	`
-	git config --system --add safe.directory *
+ARG IMPL_ARTIFACTS_DIR
 
-ENV PYTHON_VERSION=3.11.0
+RUN New-Item -ItemType Directory -Force -Path "C:\Temp", $env:IMPL_ARTIFACTS_DIR && Invoke-WebRequest -Uri https://github.com/Devsh-Graphics-Programming/compiler-explorer/archive/refs/heads/main.zip -OutFile C:\Temp\CompilerExplorer.zip && tar -xf C:\Temp\CompilerExplorer.zip -C $env:IMPL_ARTIFACTS_DIR && Remove-Item C:\Temp\CompilerExplorer.zip
 
-RUN `
-    # Download Python
-    `
-    curl -SL --output python.zip https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-embed-amd64.zip `
-    `
-    && mkdir "C:\\python" `
-    `
-    && tar -xf python.zip -C "C:\\python" `
-    `
-    && setx PATH "%PATH%;C:\\python" /M `
-    `
-    && del /q python.zip
+# final image
+FROM mcr.microsoft.com/windows/nanoserver:ltsc2022
+SHELL ["cmd.exe", "/C"]
 
-ENV NODEJS_MSI=https://nodejs.org/dist/v18.19.0/node-v18.19.0-x64.msi
+ARG IMPL_ARTIFACTS_DIR
+ARG NODE_VERSION
 
-RUN `
-	# Install Node LTS
-	`
-	curl -SL --output nodejs.msi %NODEJS_MSI% `
-	`
-	&& msiexec /i nodejs.msi /qn `
-	`
-	&& del /q nodejs.msi
+COPY --link --from=node ["${IMPL_ARTIFACTS_DIR}/node-v${NODE_VERSION}-win-x64", "C:/Node"]
+COPY --link --from=compiler-explorer ["${IMPL_ARTIFACTS_DIR}/compiler-explorer-main", "C:/Compiler-Explorer"]
 
-ENV GIT_GODBOLT_REPOSITORY_PATH=C:\compiler-explorer
-ENV CE_URL=https://github.com/Devsh-Graphics-Programming/compiler-explorer.git
-ENV CE_SHA=ce980aded514ae6a0a1b1f63e7fb358e57c9ed57
+USER ContainerAdministrator
+ENV NODE_VERSION=${NODE_VERSION} NODE_OPTIONS="--max-old-space-size=4096" GIT_VERSION=${GIT_VERSION} PATH="C:\Windows\system32;C\Windows;C:\Program Files\PowerShell;C:\Git\cmd;C:\Git\bin;C:\Git\usr\bin;C:\Git\mingw64\bin;C:\Node"
 
-RUN `
-    # Checkout Compiler-Explorer
-    `
-	mkdir %GIT_GODBOLT_REPOSITORY_PATH% `
-	`
-	&& git -C %GIT_GODBOLT_REPOSITORY_PATH% init `
-	`
-	&& git -C %GIT_GODBOLT_REPOSITORY_PATH% remote add origin %CE_URL% `
-	`
-	&& git -C %GIT_GODBOLT_REPOSITORY_PATH% fetch --depth=1 -- origin %CE_SHA% `
-	`
-	&& git -C %GIT_GODBOLT_REPOSITORY_PATH% checkout %CE_SHA% `
-    `
-    && setx GIT_GODBOLT_REPOSITORY_PATH %GIT_GODBOLT_REPOSITORY_PATH% /M
+EXPOSE 10240
+WORKDIR C:\\Compiler-Explorer
 
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+RUN npm install && npm run webpack
 
-RUN `
-    # Install Node.js dependencies & precompile production
-    `
-    cd %GIT_GODBOLT_REPOSITORY_PATH% `
-    `
-    && npm ci `
-    `
-    && npm run webpack
-	
-RUN `
-	# Post registry configuration
-	`
-    reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v "LongPathsEnabled" /t REG_DWORD /d 1 /f
-
-COPY ce_healthy_check.py /ce_healthy_check.py
-
-SHELL ["powershell.exe", "-ExecutionPolicy", "Bypass", "-Command"]
-ENTRYPOINT ["powershell.exe", "-ExecutionPolicy", "Bypass"]
-CMD ["-NoExit"]
+ENTRYPOINT ["cmd.exe", "/C"]
+CMD ["npm", "run", "start"]
