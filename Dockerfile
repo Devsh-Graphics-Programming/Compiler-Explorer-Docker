@@ -4,13 +4,8 @@
 # ---------------- GLOBAL VARS ----------------
 ARG NODE_VERSION=23.10.0
 
-# TODO: YAS please fix our lib/compilers/nsc-spirv.ts errors
-# ARG GODBOLT_REMOTE=https://github.com/compiler-explorer/compiler-explorer.git
-# ARG GODBOLT_SHA=cbbbe343dd1594c922a091b1e98b6c81dbe2c2b3
-
-# TMP from original upstream
 ARG GODBOLT_REMOTE=https://github.com/compiler-explorer/compiler-explorer.git
-ARG GODBOLT_SHA=6b5553d7267afe76ae4f2edceed3fb346309cc3d
+ARG GODBOLT_SHA=fc1b97ef9325eacbb8100d280aee0b0158a5adca
 
 ARG IMPL_NANO_BASE=mcr.microsoft.com/powershell
 ARG IMPL_NANO_TAG=lts-nanoserver-ltsc2022
@@ -89,5 +84,5 @@ PATH="C:\Windows\system32;C:\Windows;C:\Program Files\PowerShell;C:\Node"
 EXPOSE 10240
 WORKDIR C:\\Compiler-Explorer
 ENTRYPOINT ["cmd.exe", "/C"]
-CMD ["node", "--import=tsx", "./app.js"]
-# <...> --language HLSL, for instance
+CMD ["node", "--no-warnings", "--no-deprecation", "--import=tsx", "./app.js", "--language", "python"]
+# for instance, <...> --language HLSL; note we are running without any compilers in this example, one have to provide them
