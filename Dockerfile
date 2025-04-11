@@ -1,94 +1,88 @@
+# syntax=docker/dockerfile:1
 # escape=`
 
-ARG BASE_IMAGE=mcr.microsoft.com/windows/servercore:ltsc2022-amd64
+# ---------------- GLOBAL VARS ----------------
+ARG NODE_VERSION=23.10.0
 
-FROM ${BASE_IMAGE}
+ARG GODBOLT_REMOTE=https://github.com/compiler-explorer/compiler-explorer.git
+ARG GODBOLT_SHA=fc1b97ef9325eacbb8100d280aee0b0158a5adca
 
-SHELL ["cmd", "/S", "/C"]
+ARG IMPL_NANO_BASE=mcr.microsoft.com/powershell
+ARG IMPL_NANO_TAG=lts-nanoserver-ltsc2022
+ARG IMPL_GIT_VERSION=2.48.1
+ARG IMPL_ARTIFACTS_DIR="C:\artifacts"
 
-ENV GIT_VERSION=2.47.1
+# ---------------- NODE JS ----------------
+FROM ${IMPL_NANO_BASE}:${IMPL_NANO_TAG} as node
+SHELL ["pwsh", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
 
-RUN `
-	# Download Git
-	`
-	curl -SL --output git.zip https://github.com/git-for-windows/git/releases/download/v%GIT_VERSION%.windows.1/MinGit-%GIT_VERSION%-64-bit.zip `
-	`
-	&& mkdir "C:\\git" `
-	`
-	&& tar -xf git.zip -C "C:\\git" `
-	`
-	&& setx PATH "%PATH%;C:\\git\\cmd" /M `
-	`
-	&& del /q git.zip
-	
-RUN `
-	# Post git configuration
-	`
-	git config --system --add safe.directory *
+ARG NODE_VERSION
+ARG IMPL_ARTIFACTS_DIR
 
-ENV PYTHON_VERSION=3.11.0
+RUN Write-Host "Installing NodeJS $env:NODE_VERSION" ; `
+New-Item -ItemType Directory -Force -Path "C:\Temp", $env:IMPL_ARTIFACTS_DIR ; `
+Invoke-WebRequest -Uri https://nodejs.org/download/release/latest/node-v$env:NODE_VERSION-win-x64.zip -OutFile C:\Temp\nodejs.zip ; `
+tar -xf C:\Temp\nodejs.zip -C $env:IMPL_ARTIFACTS_DIR ; Remove-Item C:\Temp\nodejs.zip
 
-RUN `
-    # Download Python
-    `
-    curl -SL --output python.zip https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-embed-amd64.zip `
-    `
-    && mkdir "C:\\python" `
-    `
-    && tar -xf python.zip -C "C:\\python" `
-    `
-    && setx PATH "%PATH%;C:\\python" /M `
-    `
-    && del /q python.zip
+# ---------------- GIT ----------------
+FROM ${IMPL_NANO_BASE}:${IMPL_NANO_TAG} as git
+SHELL ["pwsh", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
 
-ENV NODEJS_MSI=https://nodejs.org/dist/v18.19.0/node-v18.19.0-x64.msi
+ARG IMPL_GIT_VERSION
+ARG IMPL_ARTIFACTS_DIR
 
-RUN `
-	# Install Node LTS
-	`
-	curl -SL --output nodejs.msi %NODEJS_MSI% `
-	`
-	&& msiexec /i nodejs.msi /qn `
-	`
-	&& del /q nodejs.msi
+RUN Write-Host "Installing Git $env:IMPL_GIT_VERSION" ; `
+New-Item -ItemType Directory -Force -Path C:\Temp, $env:IMPL_ARTIFACTS_DIR ; `
+Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v$env:IMPL_GIT_VERSION.windows.1/MinGit-$env:IMPL_GIT_VERSION-busybox-64-bit.zip" -OutFile C:\Temp\git.zip ; `
+tar -xf C:\Temp\git.zip -C $env:IMPL_ARTIFACTS_DIR ; Remove-Item C:\Temp\git.zip
 
-ENV GIT_GODBOLT_REPOSITORY_PATH=C:\compiler-explorer
-ENV CE_URL=https://github.com/Devsh-Graphics-Programming/compiler-explorer.git
-ENV CE_SHA=ce980aded514ae6a0a1b1f63e7fb358e57c9ed57
+# ---------------- COMPILER EXPLORER ----------------
+FROM ${IMPL_NANO_BASE}:${IMPL_NANO_TAG} as compiler-explorer
+SHELL ["pwsh", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
 
-RUN `
-    # Checkout Compiler-Explorer
-    `
-	mkdir %GIT_GODBOLT_REPOSITORY_PATH% `
-	`
-	&& git -C %GIT_GODBOLT_REPOSITORY_PATH% init `
-	`
-	&& git -C %GIT_GODBOLT_REPOSITORY_PATH% remote add origin %CE_URL% `
-	`
-	&& git -C %GIT_GODBOLT_REPOSITORY_PATH% fetch --depth=1 -- origin %CE_SHA% `
-	`
-	&& git -C %GIT_GODBOLT_REPOSITORY_PATH% checkout %CE_SHA% `
-    `
-    && setx GIT_GODBOLT_REPOSITORY_PATH %GIT_GODBOLT_REPOSITORY_PATH% /M
+ARG NODE_VERSION
+ARG IMPL_ARTIFACTS_DIR
 
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+COPY --link --from=node ["${IMPL_ARTIFACTS_DIR}/node-v${NODE_VERSION}-win-x64", "C:/Node"]
+COPY --link --from=git ["${IMPL_ARTIFACTS_DIR}", "C:/Git"]
+ENV PATH="C:\Windows\system32;C:\Windows;C:\Program Files\PowerShell;C:\Git\cmd;C:\Git\bin;C:\Git\usr\bin;C:\Git\mingw64\bin;C:\Node"
 
-RUN `
-    # Install Node.js dependencies & precompile production
-    `
-    cd %GIT_GODBOLT_REPOSITORY_PATH% `
-    `
-    && npm ci `
-    `
-    && npm run webpack
-	
-RUN `
-	# Post registry configuration
-	`
-    reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v "LongPathsEnabled" /t REG_DWORD /d 1 /f
+ARG GODBOLT_REMOTE
+ARG GODBOLT_SHA
 
-COPY ce_healthy_check.py /ce_healthy_check.py
+RUN Write-Host "Installing Compiler Explorer" ; Write-Host "Remote $env:GODBOLT_REMOTE" ; Write-Host "SHA $env:GODBOLT_SHA" ; `
+New-Item -ItemType Directory -Force -Path $env:IMPL_ARTIFACTS_DIR ; `
+git config --system --add safe.directory * ; `
+git -C "$env:IMPL_ARTIFACTS_DIR" init ; `
+git -C "$env:IMPL_ARTIFACTS_DIR" remote add origin $env:GODBOLT_REMOTE ; `
+git -C "$env:IMPL_ARTIFACTS_DIR" fetch --depth=1 -- origin $env:GODBOLT_SHA ; `
+git -C "$env:IMPL_ARTIFACTS_DIR" checkout $env:GODBOLT_SHA
 
-SHELL ["powershell.exe", "-ExecutionPolicy", "Bypass", "-Command"]
-ENTRYPOINT ["powershell.exe", "-ExecutionPolicy", "Bypass"]
-CMD ["-NoExit"]
+COPY scripts/build-win.ps1 ${IMPL_ARTIFACTS_DIR}/build-win.ps1 
+WORKDIR ${IMPL_ARTIFACTS_DIR}
+ENV NODE_OPTIONS="--max-old-space-size=69000"
+RUN cd $env:IMPL_ARTIFACTS_DIR ; ` 
+Write-Host "Building Compiler Explorer" ; `
+pwsh -File build-win.ps1 -CEWD "$env:IMPL_ARTIFACTS_DIR"
+
+# ---------------- FINAL IMAGE ----------------
+FROM mcr.microsoft.com/windows/nanoserver:ltsc2022
+
+ARG IMPL_ARTIFACTS_DIR
+ARG NODE_VERSION
+
+USER ContainerAdministrator
+
+COPY --link --from=node ["${IMPL_ARTIFACTS_DIR}/node-v${NODE_VERSION}-win-x64", "C:/Node"]
+COPY --link --from=compiler-explorer ["${IMPL_ARTIFACTS_DIR}/out/dist", "C:/Compiler-Explorer"]
+COPY --link --from=compiler-explorer ["${IMPL_ARTIFACTS_DIR}/out/dist-bin/dist", "C:/Compiler-Explorer"]
+COPY --link --from=compiler-explorer ["${IMPL_ARTIFACTS_DIR}/out/webpack/static", "C:/Compiler-Explorer/static"]
+
+ENV NODE_VERSION=${NODE_VERSION} NODE_ENV=production `
+PATH="C:\Windows\system32;C:\Windows;C:\Program Files\PowerShell;C:\Node"
+
+EXPOSE 10240
+WORKDIR C:\\Compiler-Explorer
+ENTRYPOINT ["cmd.exe", "/C"]
+CMD ["node", "--no-warnings", "--no-deprecation", "--import=tsx", "./app.js", "--language", "python"]
+# for instance, <...> --language HLSL; note we are running without any compilers in this example, one have to provide them
