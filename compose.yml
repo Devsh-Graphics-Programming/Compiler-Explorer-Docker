@@ -5,7 +5,6 @@ services:
       dockerfile: Dockerfile
     image: dr.devsh.eu/compiler-explorer/windows:latest
     container_name: dev.ce.base
-    entrypoint: ["cmd", "/c", "npm --prefix %GIT_GODBOLT_REPOSITORY_PATH% run dev"]
     networks:
       docker_default:
     deploy:
