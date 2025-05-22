@@ -41,6 +41,7 @@ tar -xf C:\Temp\git.zip -C $env:IMPL_ARTIFACTS_DIR ; Remove-Item C:\Temp\git.zip
 # ---------------- COMPILER EXPLORER ----------------
 FROM ${IMPL_NANO_BASE}:${IMPL_NANO_TAG} as compiler-explorer
 SHELL ["pwsh", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
+USER ContainerAdministrator
 
 ARG NODE_VERSION
 ARG IMPL_ARTIFACTS_DIR
