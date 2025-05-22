@@ -1,0 +1,72 @@
+name: Build & Deploy Godbolt Image
+
+on:
+  workflow_dispatch:
+
+env:
+  TAG: nano-2022
+
+jobs:
+  build-and-push:
+    runs-on: windows-2022
+
+    env:
+      entry: pwsh.exe
+      cmd: -NoLogo -NoProfile -ExecutionPolicy Bypass
+
+    outputs:
+      image_tagged: ${{ steps.vars.outputs.image_tagged }}
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set image tag
+      id: vars
+      run: |
+        $repo = $env:GITHUB_REPOSITORY.ToLower()
+        $imageBase = "ghcr.io/$repo"
+        $taggedImage = "${imageBase}:${env:TAG}"
+        "image_tagged=$taggedImage" >> $env:GITHUB_OUTPUT
+
+    - name: Log in to GHCR
+      run: echo "${{ secrets.CR_PAT }}" | docker login ghcr.io -u $env:GITHUB_ACTOR --password-stdin
+
+    - name: Build Image
+      run: |
+        docker build `
+          --isolation process `
+          --build-arg "TAG=$env:TAG" `
+          -t "${{ steps.vars.outputs.image_tagged }}" .
+
+    - name: Push Image
+      run: |
+        docker push "${{ steps.vars.outputs.image_tagged }}"
+
+  run-nano-container:
+    needs: build-and-push
+    runs-on: windows-2022
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+    - name: Log in to GHCR
+      run: echo "${{ secrets.CR_PAT }}" | docker login ghcr.io -u $env:GITHUB_ACTOR --password-stdin
+
+    - name: Pull Image
+      run: docker pull "${{ needs.build-and-push.outputs.image_tagged }}"
+
+    - name: Run Container
+      run: docker run --entrypoint ${{ env.entry }} --isolation process -di --name orphan "${{ needs.build-and-push.outputs.image_tagged }}" ${{ env.cmd }}
+
+    - name: Inspect Container
+      run: docker inspect orphan
+
+    - name: Container – Inspect Godbolt Dist
+      run: docker exec orphan ${{ env.entry }} ${{ env.cmd }} -Command node --import=tsx --no-warnings=ExperimentalWarning ./app.js --version --dist
