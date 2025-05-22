@@ -5,14 +5,12 @@ on:
 
 env:
   TAG: nano-2022
+  entry: pwsh.exe
+  cmd: -NoLogo -NoProfile -ExecutionPolicy Bypass
 
 jobs:
   build-and-push:
     runs-on: windows-2022
-
-    env:
-      entry: pwsh.exe
-      cmd: -NoLogo -NoProfile -ExecutionPolicy Bypass
 
     outputs:
       image_tagged: ${{ steps.vars.outputs.image_tagged }}
@@ -40,7 +38,6 @@ jobs:
       run: |
         docker build `
           --isolation process `
-          --build-arg "TAG=$env:TAG" `
           -t "${{ steps.vars.outputs.image_tagged }}" .
 
     - name: Push Image
