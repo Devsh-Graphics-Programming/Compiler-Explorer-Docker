@@ -53,17 +53,14 @@ jobs:
         shell: pwsh
 
     steps:
-    - name: Log in to GHCR
-      run: echo "${{ secrets.CR_PAT }}" | docker login ghcr.io -u $env:GITHUB_ACTOR --password-stdin
-
     - name: Pull Image
       run: docker pull "${{ needs.build-and-push.outputs.image_tagged }}"
 
     - name: Run Container
-      run: docker run --entrypoint ${{ env.entry }} --isolation process -di --name orphan "${{ needs.build-and-push.outputs.image_tagged }}" ${{ env.cmd }}
+      run: docker run --entrypoint cmd --isolation process -di --name orphan "${{ needs.build-and-push.outputs.image_tagged }}" ${{ env.cmd }}
 
     - name: Inspect Container
       run: docker inspect orphan
 
     - name: Container – Inspect Godbolt Dist
-      run: docker exec orphan ${{ env.entry }} ${{ env.cmd }} -Command node --import=tsx --no-warnings=ExperimentalWarning ./app.js --version --dist
+      run: docker exec orphan cmd /c node --import=tsx --no-warnings=ExperimentalWarning ./app.js --version --dist
