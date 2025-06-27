@@ -109,5 +109,7 @@ EXPOSE 10240
 COPY unpack.bat .
 WORKDIR C:\Compiler-Explorer
 
-ENTRYPOINT ["cmd.exe", "/S", "/K"]
-CMD ["C:/unpack.bat"]
+ENTRYPOINT [ `
+  "C:\\unpack.bat", "&&", `
+  "node", "--no-warnings", "--no-deprecation", "--import=tsx", "./app.js" `
+]

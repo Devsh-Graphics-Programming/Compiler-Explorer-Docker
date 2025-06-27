@@ -1,6 +1,19 @@
-# Compiler-Explorer-Docker
+<div align="center">
+   <img alt="Click to see the source" height="200" src="nabla-glow.svg" width="200" />
+</div>
 
-Host your own Compiler Explorer instance in docker container!
+<div align="center">
+  <h3>Host your own Compiler Explorer instance in docker container!</h3>
+</div>
+
+<p align="center">
+  <a href="https://github.com/Devsh-Graphics-Programming/Compiler-Explorer-Docker/actions/workflows/main.yml">
+    <img src="https://github.com/Devsh-Graphics-Programming/Compiler-Explorer-Docker/actions/workflows/main.yml/badge.svg" alt="Build Status" /></a>
+  <a href="https://opensource.org/licenses/Apache-2.0">
+    <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License: Apache 2.0" /></a>
+  <a href="https://discord.gg/krsBcABm7u">
+    <img src="https://img.shields.io/discord/308323056592486420?label=discord&logo=discord&logoColor=white&color=7289DA" alt="Join our Discord" /></a>
+</p>
 
 ## Requirements
 
@@ -48,3 +61,7 @@ and open your browser with **http://localhost**.
 
 > [!IMPORTANT]  
 > You should use produced image as base to provide your own compilers (installation binaries) & configuration files for CE to use them. By default we run it without any compilers.
+
+### Production example
+
+We use this image as base for Nabla Shader Compiler we host on https://godbolt.devsh.eu, it gets created by building [CMake](<https://github.com/Devsh-Graphics-Programming/Nabla/blob/master/tools/nsc/CMakeLists.txt>) target which is part of Nabla build system, for more details checkout its [readme](https://github.com/Devsh-Graphics-Programming/Nabla/tree/master/tools/nsc/docker)
