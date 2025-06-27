@@ -31,15 +31,25 @@
 
 ![Containers for Windows](https://user-images.githubusercontent.com/65064509/152947300-affca592-35a7-4e4c-a7fc-2055ce1ba528.png)
 
-### Build and run
+### Run container from github container registry
 
-Clone the repository 
+execute
+
+```powershell
+docker run -it -p 80:10240 ghcr.io/devsh-graphics-programming/compiler-explorer-docker:nano-2022
+```
+
+and open your browser with **http://localhost**.
+
+### or build image yourself
+
+clone the repository 
 
 ```powershell
 git clone https://github.com/Devsh-Graphics-Programming/Compiler-Explorer-Docker.git
 ```
 
-enter the cloned directory, build the image
+enter the cloned directory and build the image
 
 ```powershell
 docker build --isolation "process" -t godbolt/nano .
@@ -51,13 +61,11 @@ docker build --isolation "process" -t godbolt/nano .
 > [!TIP]
 > The image is built with default set of options, there are a few you can override (eg. NodeJS version, remote & sha of CE). See [Dockerfile](<https://github.com/Devsh-Graphics-Programming/Compiler-Explorer-Docker/blob/master/Dockerfile>) code for more details.
 
-run the container 
+then run the container 
 
 ```powershell
 docker run -p 80:10240 -it godbolt/nano
 ```
-
-and open your browser with **http://localhost**. 
 
 > [!IMPORTANT]  
 > You should use produced image as base to provide your own compilers (installation binaries) & configuration files for CE to use them. By default we run it without any compilers.
